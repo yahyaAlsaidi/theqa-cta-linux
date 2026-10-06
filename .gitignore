@@ -1,0 +1,16 @@
+# Build output
+cta-linux/bin/
+cta-linux/obj/
+packaging/*.deb
+packaging/*.crx
+
+# Extension signing key (fixes the extension ID; keep it, never publish it)
+packaging/*.pem
+
+# Digitrustec material: installer, decompiled code. Never commit.
+*.exe
+decompiled/
+
+# Local
+.venv/
+__pycache__/

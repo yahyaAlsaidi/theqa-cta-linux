@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Theqa CTA for Linux",
+  "version": "1.0",
+  "description": "Lets the Theqa ID card login (idp-pki.mtcit.gov.om) work with Theqa CTA for Linux.",
+  "content_scripts": [
+    {
+      "matches": ["https://idp-pki.mtcit.gov.om/*"],
+      "js": ["os.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}
