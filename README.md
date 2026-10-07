@@ -4,7 +4,7 @@ Use your **Oman ID card** to log in to **Theqa** ([idp-pki.mtcit.gov.om](https:/
 
 The login page talks to a local helper app, Digitrustec's **CTA / Identity Reader**, which only exists for Windows and macOS. This project runs that same helper natively on Linux. It reuses the official CTA's own .NET assemblies unchanged and replaces only the Windows-specific shell (WPF window, tray, Win32 calls) with a small Linux host.
 
-> **Unofficial.** Not affiliated with or endorsed by Digitrustec or MTCIT. This repository contains **no Digitrustec code or binaries**. You build the package from your own copy of the official Windows installer.
+> **Unofficial.** Not affiliated with or endorsed by Digitrustec or MTCIT. The ready-made packages on the Releases page include Digitrustec's CTA components; the source in this repository does not.
 
 ## How it works
 
@@ -20,11 +20,110 @@ Browser (idp-pki.mtcit.gov.om)
 - **Same host, minus Windows.** The Linux host registers the same services, SignalR hubs and port as the Windows app. Results therefore come back exactly as the Theqa server expects (they are signed and encrypted for the server by the original code).
 - **Browser side.** The login page only accepts Windows and macOS, so a tiny browser extension makes that one site see Windows ([details](#browser-side)). The package installs it automatically in Chromium-based browsers.
 
-## Requirements
+## Install
 
-- 64-bit (x86-64) Linux with glibc: Debian/Ubuntu, Fedora/RHEL, openSUSE, Arch and their derivatives get native packages; anything else uses the tarball
+Ready-made packages are on the [Releases page](https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/latest). Nothing else to download: no Windows installer, no build tools.
+
+You need:
+
+- 64-bit (x86-64) Linux
 - a USB smart-card reader (tested: Alcor Link AK9563)
-- Google Chrome, Chromium, Brave or Edge; Firefox once the extension is [signed](#firefox)
+- Google Chrome, Chromium, Brave or Edge (Firefox: see [Firefox users](#firefox-users))
+
+### 1. Download and install the package for your distro
+
+**Debian, Ubuntu, Linux Mint, Pop!_OS, Zorin OS**
+
+```sh
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/theqa-cta_1.4.18_amd64.deb
+sudo apt install ./theqa-cta_1.4.18_amd64.deb
+```
+
+**Fedora, RHEL, AlmaLinux, Rocky Linux**
+
+```sh
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/theqa-cta-1.4.18-1.x86_64.rpm
+sudo dnf install ./theqa-cta-1.4.18-1.x86_64.rpm
+```
+
+**openSUSE**
+
+```sh
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/theqa-cta-1.4.18-1.x86_64.rpm
+sudo zypper install --allow-unsigned-rpm ./theqa-cta-1.4.18-1.x86_64.rpm
+```
+
+**Arch Linux, Manjaro, EndeavourOS**
+
+```sh
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/theqa-cta-1.4.18-1-x86_64.pkg.tar.zst
+sudo pacman -U ./theqa-cta-1.4.18-1-x86_64.pkg.tar.zst
+```
+
+**Any other distro**
+
+```sh
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/theqa-cta-1.4.18-linux-x64.tar.gz
+tar -xzf theqa-cta-1.4.18-linux-x64.tar.gz && sudo ./theqa-cta-1.4.18/install.sh
+```
+
+The packages also install your distro's smart-card service (pcsc-lite) and USB reader driver (CCID), and start the service. For the tarball, `install.sh` tells you what to install if they're missing.
+
+To check a download (optional):
+
+```sh
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS
+```
+
+### 2. Start using it
+
+1. Restart your browser if it was open. It installs the "Theqa CTA for Linux" extension by itself.
+2. Log out and back in, or run `theqa-cta`. A tray icon appears, and from now on it starts at every login.
+3. Plug in the reader, insert your ID card, open https://idp-pki.mtcit.gov.om, choose ID card login and enter your PIN on the page.
+
+### Remove
+
+| Distro | Command |
+|---|---|
+| Debian, Ubuntu and derivatives | `sudo apt remove theqa-cta` |
+| Fedora, RHEL and derivatives | `sudo dnf remove theqa-cta` |
+| openSUSE | `sudo zypper remove theqa-cta` |
+| Arch and derivatives | `sudo pacman -R theqa-cta` |
+| Tarball install | `sudo /opt/theqa-cta/install.sh --uninstall` |
+
+Removing also removes the browser policy and extension.
+
+### Firefox users
+
+The extension isn't installed automatically in Firefox yet. Instead, add a userscript manager (Violentmonkey or Tampermonkey) and load `/usr/share/doc/theqa-cta/theqa-linux.user.js`, which is installed with the package.
+
+## Usage
+
+| | |
+|---|---|
+| Start manually | `theqa-cta`, or "Theqa CTA" in the app menu |
+| Tray menu | version, **Open logs**, **Quit** |
+| Headless | without `DISPLAY` / `WAYLAND_DISPLAY` it runs without the tray (e.g. under systemd) |
+| Logs | `~/.local/share/Digitrustec.CTA/logs/{General,Errors}/<date>/` |
+| Allowed sites | `THEQA_ALLOWED_ORIGINS`, comma-separated (default `https://idp-pki.mtcit.gov.om`) |
+
+### Troubleshooting
+
+- Is it running? `ss -ltn | grep 5234`
+- Does Linux see the reader? `pcsc_scan` (package `pcsc-tools`)
+- Is the extension installed? Check `chrome://extensions` and `chrome://policy`
+- `IsDeviceConnected` is false for the first few seconds. The card monitor starts on the page's first request and polls every 5 s, the same as on Windows.
+- Hub smoke test without the browser (needs `python3 -m venv .venv && .venv/bin/pip install aiohttp`):
+
+  ```sh
+  .venv/bin/python cta-linux/probe.py          # version, card presence, card info, certificate
+  .venv/bin/python cta-linux/probe.py --pin    # + PIN login and a test signature (asks for the PIN; a wrong PIN uses up an attempt)
+  ```
+
+## Build from source
+
+Only needed if you want to build the packages yourself. The repository has no Digitrustec files: the build takes them from the official Windows installer.
 
 Building needs nothing set up in advance besides a desktop session (the official installer opens a window, even when unattended). `packaging/build.sh` takes care of its tools:
 
@@ -36,10 +135,6 @@ Building needs nothing set up in advance besides a desktop session (the official
 | Wine | your package manager, after asking. Debian/Ubuntu: `wine wine64 wine32:i386` (enables i386 first); openSUSE: `wine wine-32bit`; Fedora/Arch: `wine` |
 
 Tools already on your system are used as they are.
-
-## Build the package
-
-The repository has no Digitrustec files. The build takes them from the official Windows installer, which you download yourself.
 
 1. **Clone.**
 
@@ -82,27 +177,6 @@ The repository has no Digitrustec files. The build takes them from the official 
 
 > The packages contain Digitrustec's assemblies, so don't publish them without their permission.
 
-## Install
-
-| Distro | Install | Remove |
-|---|---|---|
-| Debian, Ubuntu, Mint, Pop!_OS, Zorin | `sudo apt install ./theqa-cta_1.4.18_amd64.deb` | `sudo apt remove theqa-cta` |
-| Fedora, RHEL, AlmaLinux, Rocky | `sudo dnf install ./theqa-cta-1.4.18-1.x86_64.rpm` | `sudo dnf remove theqa-cta` |
-| openSUSE | `sudo zypper install --allow-unsigned-rpm ./theqa-cta-1.4.18-1.x86_64.rpm` | `sudo zypper remove theqa-cta` |
-| Arch, Manjaro, EndeavourOS | `sudo pacman -U theqa-cta-1.4.18-1-x86_64.pkg.tar.zst` | `sudo pacman -R theqa-cta` |
-| Other | `tar -xzf theqa-cta-1.4.18-linux-x64.tar.gz && sudo ./theqa-cta-1.4.18/install.sh` | `sudo /opt/theqa-cta/install.sh --uninstall` |
-
-- **Smart-card service.** The native packages pull in the distro's smart-card service and reader driver, and start `pcscd.socket`.
-- **Tarball.** `install.sh` tells you what to install if the smart-card service is missing.
-
-Then:
-
-1. Restart your browser if it was open. It installs the "Theqa CTA for Linux" extension by itself.
-2. Log out and back in, or run `theqa-cta`. A tray icon appears, and from now on it starts at every login.
-3. Plug in the reader, insert your ID card, open https://idp-pki.mtcit.gov.om, choose ID card login and enter your PIN on the page.
-
-Uninstalling also removes the browser policy and extension.
-
 ### Firefox
 
 Firefox only force-installs extensions signed by Mozilla. Signing is free and the extension stays unlisted (private). It is a one-time setup per extension version:
@@ -123,29 +197,6 @@ Firefox only force-installs extensions signed by Mozilla. Signing is free and th
    ```
 
 With `packaging/firefox-ext.xpi` present, the packages also install `/etc/firefox/policies/policies.json`, which force-installs it. Commit the signed `.xpi`: Mozilla won't sign the same version twice. Without it, Firefox users can load the userscript (`/usr/share/doc/theqa-cta/theqa-linux.user.js`) in Violentmonkey or Tampermonkey.
-
-## Usage
-
-| | |
-|---|---|
-| Start manually | `theqa-cta`, or "Theqa CTA" in the app menu |
-| Tray menu | version, **Open logs**, **Quit** |
-| Headless | without `DISPLAY` / `WAYLAND_DISPLAY` it runs without the tray (e.g. under systemd) |
-| Logs | `~/.local/share/Digitrustec.CTA/logs/{General,Errors}/<date>/` |
-| Allowed sites | `THEQA_ALLOWED_ORIGINS`, comma-separated (default `https://idp-pki.mtcit.gov.om`) |
-
-### Troubleshooting
-
-- Is it running? `ss -ltn | grep 5234`
-- Does Linux see the reader? `pcsc_scan` (package `pcsc-tools`)
-- Is the extension installed? Check `chrome://extensions` and `chrome://policy`
-- `IsDeviceConnected` is false for the first few seconds. The card monitor starts on the page's first request and polls every 5 s, the same as on Windows.
-- Hub smoke test without the browser (needs `python3 -m venv .venv && .venv/bin/pip install aiohttp`):
-
-  ```sh
-  .venv/bin/python cta-linux/probe.py          # version, card presence, card info, certificate
-  .venv/bin/python cta-linux/probe.py --pin    # + PIN login and a test signature (asks for the PIN; a wrong PIN uses up an attempt)
-  ```
 
 ## Technical details
 
