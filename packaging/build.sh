@@ -5,27 +5,73 @@
 #   theqa-cta-<v>-1-x86_64.pkg.tar.zst   Arch, Manjaro, EndeavourOS
 #   theqa-cta-<v>-linux-x64.tar.gz       any other glibc distro (install.sh)
 # Usage: packaging/build.sh [path/to/official-CTA-installer.exe]
-# Needs: .NET 8 SDK, nfpm, Wine, google-chrome + openssl (to pack the browser extension).
 # The official CTA files come from the installer you pass (unpacked by an unattended install into a throwaway Wine
 # prefix), or, without an argument, from an existing Wine install (CtaDir in cta-linux/*.csproj).
-# The app is self-contained: target machines need no .NET.
+# Build tools are set up on first run: .NET 8 SDK and nFPM go into packaging/.tools (no root); curl, python3, openssl
+# and Wine come from the distro's package manager (asks first). The app is self-contained: targets need no .NET.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dist=$here/dist
+tools=$here/.tools
 stage=$(mktemp -d)
 trap 'rm -rf "$stage" "$stage.yaml" "$stage-tar" "$stage-cta"' EXIT
 app=$stage/opt/theqa-cta
-nfpm=$(command -v nfpm || echo "$HOME/go/bin/nfpm")
+mkdir -p "$tools"
+
+sudo=$([ "$(id -u)" = 0 ] || echo sudo)
+pm=$(for p in apt-get dnf zypper pacman; do command -v $p >/dev/null && echo $p && break; done)
+need() { # need <command> <apt packages> <dnf packages> <zypper packages> <pacman packages>
+  command -v "$1" >/dev/null && return 0
+  case $pm in apt-get) pkgs=$2 ;; dnf) pkgs=$3 ;; zypper) pkgs=$4 ;; pacman) pkgs=$5 ;; *) echo "Install $1, then run again." >&2; exit 1 ;; esac
+  printf '%s is missing. Install it now (%s install %s, needs sudo)? [y/N] ' "$1" "$pm" "$pkgs"
+  read -r answer || true
+  [ "$answer" = y ] || exit 1
+  case $pm in
+    apt-get) case $pkgs in *:i386*) $sudo dpkg --add-architecture i386 ;; esac
+             $sudo apt-get update && $sudo apt-get install -y $pkgs ;;
+    dnf) $sudo dnf install -y $pkgs ;;
+    zypper) $sudo zypper install -y $pkgs ;;
+    pacman) $sudo pacman -S --needed --noconfirm $pkgs ;;
+  esac
+}
+need curl curl curl curl curl
+need python3 python3 python3 python3 python
+need openssl openssl openssl openssl openssl
+# The official installer is a 32-bit program that only installs on 64-bit Windows: Debian/Ubuntu need 64- and 32-bit
+# Wine (Fedora and Arch ship both in one package), openSUSE needs wine-32bit.
+[ $# -eq 0 ] || need wine "wine wine64 wine32:i386" wine "wine wine-32bit" wine
+
+# .NET 8 SDK: one on PATH, else Microsoft's dotnet-install.sh into .tools
+export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 DOTNET_CLI_TELEMETRY_OPTOUT=1  # SDK runs without libicu (minimal systems)
+if ! dotnet --list-sdks 2>/dev/null | grep -q '^8\.'; then
+  [ -x "$tools/dotnet/dotnet" ] || curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir "$tools/dotnet"
+  export DOTNET_ROOT="$tools/dotnet" PATH="$tools/dotnet:$PATH"
+fi
+# nFPM: one on PATH, else the pinned release into .tools (checksum-verified)
+nfpm=$(command -v nfpm || echo "$tools/nfpm")
+if [ ! -x "$nfpm" ]; then
+  nfpm_version=2.47.0
+  tgz=nfpm_${nfpm_version}_Linux_x86_64.tar.gz
+  url=https://github.com/goreleaser/nfpm/releases/download/v$nfpm_version
+  curl -fsSL -o "$tools/$tgz" "$url/$tgz"
+  curl -fsSL "$url/checksums.txt" | grep " $tgz\$" | (cd "$tools" && sha256sum -c --quiet -)
+  tar -xzf "$tools/$tgz" -C "$tools" nfpm && rm "$tools/$tgz"
+fi
 
 cta_dir=
 if [ $# -gt 0 ]; then
   cta_dir=$stage-cta/app
   mkdir -p "$cta_dir"
   # mscoree/mshtml off: no Wine Mono/Gecko install prompts (the installer needs neither)
-  export WINEPREFIX="$stage-cta/prefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml="
-  wine "$1" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /NOICONS "/DIR=$(winepath -w "$cta_dir")"
+  export WINEARCH=win64 WINEPREFIX="$stage-cta/prefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml="
+  wine "$1" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /NOICONS "/DIR=$(winepath -w "$cta_dir")" || true
   wineserver -k 2>/dev/null || true
-  [ -f "$cta_dir/Digitrustec.CTA.Win.dll" ] || { echo "No CTA files after running $1. Is it the official CTA installer?" >&2; exit 1; }
+  [ -f "$cta_dir/Digitrustec.CTA.Win.dll" ] || {
+    echo "No CTA files after running $1. Is it the official CTA installer? Wine also needs 32-bit support:" >&2
+    echo "  Debian/Ubuntu: sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install wine64 wine32:i386" >&2
+    echo "  openSUSE: sudo zypper install wine-32bit" >&2
+    exit 1
+  }
 fi
 
 dotnet publish "$here/../cta-linux" -c Release -r linux-x64 --self-contained -p:DebugType=none ${cta_dir:+"-p:CtaDir=$cta_dir"} -o "$app"
@@ -53,9 +99,7 @@ cp "$here/../theqa-linux.user.js" "$here/../README.md" "$stage/usr/share/doc/the
 # browser-ext.pem fixes the extension ID: keep it to ship updates, never package it.
 key=$here/browser-ext.pem
 [ -f "$key" ] || openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$key"
-google-chrome --pack-extension="$here/browser-ext" --pack-extension-key="$key" --user-data-dir="$stage/chrome" --no-message-box >/dev/null
-rm -rf "$stage/chrome"
-mv "$here/browser-ext.crx" "$app/browser-ext.crx"
+python3 "$here/pack_crx.py" "$here/browser-ext" "$key" "$app/browser-ext.crx"
 ext_id=$(openssl pkey -in "$key" -pubout -outform DER | sha256sum | head -c32 | tr 0-9a-f a-p)
 ext_version=$(sed -n 's/.*"version": "\(.*\)".*/\1/p' "$here/browser-ext/manifest.json")
 cat > "$app/browser-ext.xml" <<EOF
