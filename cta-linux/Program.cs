@@ -60,7 +60,15 @@ else
     // SIGTERM (logout, systemd stop) stops the web host; also end the tray loop so Main returns.
     app.Lifetime.ApplicationStopping.Register(() => Dispatcher.UIThread.Post(() =>
         ((IClassicDesktopStyleApplicationLifetime)Application.Current!.ApplicationLifetime!).Shutdown()));
-    AppBuilder.Configure<Tray>().UsePlatformDetect().StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
+    try
+    {
+        AppBuilder.Configure<Tray>().UsePlatformDetect().StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
+    }
+    catch (Exception e) // e.g. no X server/XWayland or missing X11 libraries: the card bridge still works without a tray
+    {
+        app.Logger.LogWarning(e, "Tray unavailable, running without it");
+        Task.Run(() => app.WaitForShutdownAsync()).GetAwaiter().GetResult();
+    }
 }
 // Off this thread: Avalonia leaves its SynchronizationContext here, and stopping on it deadlocks.
 Task.Run(() => app.StopAsync()).GetAwaiter().GetResult();

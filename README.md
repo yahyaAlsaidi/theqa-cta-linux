@@ -22,15 +22,16 @@ Browser (idp-pki.mtcit.gov.om)
 
 ## Requirements
 
-- 64-bit Debian/Ubuntu-based Linux (tested on Zorin OS 18.1 / Ubuntu 24.04 base)
+- 64-bit (x86-64) Linux with glibc: Debian/Ubuntu, Fedora/RHEL, openSUSE, Arch and their derivatives get native packages; anything else uses the tarball
 - a USB smart-card reader (tested: Alcor Link AK9563)
-- Google Chrome, Chromium, Brave or Edge (Firefox: see [Limitations](#limitations))
+- Google Chrome, Chromium, Brave or Edge; Firefox once the extension is [signed](#firefox)
 
-To build the package you also need:
+To build the packages you also need:
 
-- .NET 8 SDK: `sudo apt install dotnet-sdk-8.0`
-- Wine: `sudo apt install wine`
-- `google-chrome` (used to pack the browser extension) and `openssl`
+- .NET 8 SDK (e.g. `sudo apt install dotnet-sdk-8.0`)
+- Wine
+- [nFPM](https://nfpm.goreleaser.com): `go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest`
+- `google-chrome` (packs the browser extension) and `openssl`
 
 ## Build the package
 
@@ -48,18 +49,36 @@ To build the package you also need:
 3. **Build.**
 
    ```sh
-   packaging/build-deb.sh        # -> packaging/theqa-cta_<version>_amd64.deb
+   packaging/build.sh
    ```
 
-   The package version matches the CTA version you built from. The first build generates `packaging/browser-ext.pem`, the extension signing key. Keep it: it fixes the extension ID across updates. It is git-ignored and never packaged.
+   Output in `packaging/dist/`:
 
-> The `.deb` contains Digitrustec's assemblies, so don't publish it without their permission.
+   | File | For |
+   |---|---|
+   | `theqa-cta_1.4.18_amd64.deb` | Debian, Ubuntu, Mint, Pop!_OS, Zorin |
+   | `theqa-cta-1.4.18-1.x86_64.rpm` | Fedora, RHEL, AlmaLinux, Rocky, openSUSE |
+   | `theqa-cta-1.4.18-1-x86_64.pkg.tar.zst` | Arch, Manjaro, EndeavourOS |
+   | `theqa-cta-1.4.18-linux-x64.tar.gz` | any other glibc distro |
+
+   - **Version.** It matches the CTA version you built from.
+   - **Contents.** Every package carries the same files. Only the dependency names differ per distro: pcsc-lite (smart-card service) and the CCID reader driver.
+   - **Extension key.** The first build generates `packaging/browser-ext.pem`, the extension signing key. Keep it: it fixes the extension ID across updates. It is git-ignored and never packaged.
+
+> The packages contain Digitrustec's assemblies, so don't publish them without their permission.
 
 ## Install
 
-```sh
-sudo apt install ./packaging/theqa-cta_1.4.18_amd64.deb
-```
+| Distro | Install | Remove |
+|---|---|---|
+| Debian, Ubuntu, Mint, Pop!_OS, Zorin | `sudo apt install ./theqa-cta_1.4.18_amd64.deb` | `sudo apt remove theqa-cta` |
+| Fedora, RHEL, AlmaLinux, Rocky | `sudo dnf install ./theqa-cta-1.4.18-1.x86_64.rpm` | `sudo dnf remove theqa-cta` |
+| openSUSE | `sudo zypper install --allow-unsigned-rpm ./theqa-cta-1.4.18-1.x86_64.rpm` | `sudo zypper remove theqa-cta` |
+| Arch, Manjaro, EndeavourOS | `sudo pacman -U theqa-cta-1.4.18-1-x86_64.pkg.tar.zst` | `sudo pacman -R theqa-cta` |
+| Other | `tar -xzf theqa-cta-1.4.18-linux-x64.tar.gz && sudo ./theqa-cta-1.4.18/install.sh` | `sudo /opt/theqa-cta/install.sh --uninstall` |
+
+- **Smart-card service.** The native packages pull in the distro's smart-card service and reader driver, and start `pcscd.socket`.
+- **Tarball.** `install.sh` tells you what to install if the smart-card service is missing.
 
 Then:
 
@@ -67,7 +86,28 @@ Then:
 2. Log out and back in, or run `theqa-cta`. A tray icon appears, and from now on it starts at every login.
 3. Plug in the reader, insert your ID card, open https://idp-pki.mtcit.gov.om, choose ID card login and enter your PIN on the page.
 
-Uninstall with `sudo apt remove theqa-cta`. This also removes the browser policy and extension.
+Uninstalling also removes the browser policy and extension.
+
+### Firefox
+
+Firefox only force-installs extensions signed by Mozilla. Signing is free and the extension stays unlisted (private). It is a one-time setup per extension version:
+
+1. Create API credentials at https://addons.mozilla.org/developers/addon/api/key/ and put them in your shell environment. Never commit them.
+
+   ```sh
+   export WEB_EXT_API_KEY=...  WEB_EXT_API_SECRET=...
+   ```
+
+2. Sign and rebuild:
+
+   ```sh
+   npx web-ext sign --source-dir packaging/browser-ext --channel unlisted \
+       --artifacts-dir packaging/browser-ext/web-ext-artifacts
+   cp packaging/browser-ext/web-ext-artifacts/*.xpi packaging/firefox-ext.xpi
+   packaging/build.sh
+   ```
+
+With `packaging/firefox-ext.xpi` present, the packages also install `/etc/firefox/policies/policies.json`, which force-installs it. Commit the signed `.xpi`: Mozilla won't sign the same version twice. Without it, Firefox users can load the userscript (`/usr/share/doc/theqa-cta/theqa-linux.user.js`) in Violentmonkey or Tampermonkey.
 
 ## Usage
 
@@ -165,8 +205,10 @@ Because of the policy, the browser shows "Managed by your organization", and the
 | `cta-linux/Digitrustec.CTA.Linux.csproj` | references the official assemblies from `CtaDir`, version stamping |
 | `cta-linux/probe.py` | hub test client |
 | `cta-linux/appicon.png` | tray / menu icon |
-| `packaging/build-deb.sh` | builds the `.deb` |
-| `packaging/browser-ext/` | browser extension |
+| `packaging/build.sh` | builds all packages with nFPM, plus the tarball |
+| `packaging/postinstall.sh` | package post-install: starts `pcscd.socket` |
+| `packaging/install.sh` | tarball installer / uninstaller |
+| `packaging/browser-ext/` | browser extension (Chromium and Firefox) |
 | `theqa-linux.user.js` | the same page fix as a userscript, for Firefox |
 
 To read the official code for reference, decompile it yourself with [ILSpy](https://github.com/icsharpcode/ILSpy) (`ilspycmd -p -o decompiled/<name> <dll>`). Decompiled output is git-ignored.
@@ -183,6 +225,17 @@ Tested against the official Windows CTA 1.4.18 (run under Wine), with the same c
 | `GetCertificatesAsync` | authentication certificate | same |
 | Request from another website | rejected (403) | accepted |
 
+Packages, tested in clean containers. In each one the distro's package manager installed the package and resolved the dependencies. The app started, `probe.py` got version 1.4.18 and sealed results, and with no usable display the app fell back to running without the tray:
+
+| Distro | Package | Smart-card deps installed |
+|---|---|---|
+| Debian 13 (stable) | `.deb` | pcscd 2.3.3, libccid 1.6.2 |
+| Ubuntu 24.04 | `.deb` | pcscd 2.0.3, libccid 1.5.5 |
+| Fedora 44 | `.rpm` | pcsc-lite 2.4.1, pcsc-lite-ccid 1.7.1 |
+| openSUSE Tumbleweed | `.rpm` | pcsc-lite 2.3.3 (the CCID driver is a recommended dependency; the container image skips those) |
+| Arch Linux | `.pkg.tar.zst` | pcsclite 2.5.2, ccid 1.8.4 |
+| AlmaLinux 9 | tarball | none: `install.sh` printed the hint. Install, run and uninstall all worked |
+
 Browser side, tested in a fresh headless Chrome 152 profile with the package installed:
 
 - the extension is force-installed;
@@ -191,7 +244,10 @@ Browser side, tested in a fresh headless Chrome 152 profile with the package ins
 
 ## Limitations
 
-- **Firefox.** Firefox only installs Mozilla-signed extensions through policy. Use the userscript (`/usr/share/doc/theqa-cta/theqa-linux.user.js`, needs Violentmonkey or Tampermonkey) until the extension is signed on addons.mozilla.org.
+- **Firefox.** It needs the signed extension ([Firefox](#firefox)). Firefox 140 or newer is required.
+- **Snap and Flatpak browsers.** They don't read the policies in `/etc`, and may not be able to read `/opt`. Untested: use the userscript there. Google Chrome, Brave and Edge are normal packages, not snaps.
+- **Tray on plain GNOME.** Fedora, Debian and Arch's GNOME show no tray icons without the "AppIndicator and KStatusNotifierItem Support" extension. The app still works; the icon just isn't visible. KDE, Cinnamon, XFCE and Ubuntu-based desktops show it.
+- **Architecture.** x86-64 with glibc only. ARM64 or musl (Alpine) would need `-r linux-arm64` / `linux-musl-x64` builds.
 - **eToken.** eToken (`ETokenHub`) login doesn't work: the official code loads a hardcoded Windows PKCS#11 DLL path.
 - **One desktop user at a time.** The port, 5234, is fixed.
 - **Card photo.** It is returned as raw JPEG 2000, the same as on Windows.

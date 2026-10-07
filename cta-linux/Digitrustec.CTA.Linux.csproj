@@ -6,6 +6,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- No culture-specific code in the CTA; drops the libicu dependency (named differently on every distro). -->
+    <InvariantGlobalization>true</InvariantGlobalization>
     <CtaDir Condition="'$(CtaDir)' == ''">$(HOME)/.wine-theqa/drive_c/users/$(USER)/AppData/Local/Digitrustec.CTA.Win</CtaDir>
   </PropertyGroup>
 

@@ -1,8 +1,9 @@
 # Build output
 cta-linux/bin/
 cta-linux/obj/
-packaging/*.deb
+packaging/dist/
 packaging/*.crx
+packaging/browser-ext/web-ext-artifacts/
 
 # Extension signing key (fixes the extension ID; keep it, never publish it)
 packaging/*.pem
