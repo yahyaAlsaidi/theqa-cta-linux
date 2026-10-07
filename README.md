@@ -26,12 +26,16 @@ Browser (idp-pki.mtcit.gov.om)
 - a USB smart-card reader (tested: Alcor Link AK9563)
 - Google Chrome, Chromium, Brave or Edge; Firefox once the extension is [signed](#firefox)
 
-To build the packages you also need:
+Building needs nothing set up in advance besides a desktop session (the official installer opens a window, even when unattended). `packaging/build.sh` takes care of its tools:
 
-- .NET 8 SDK (e.g. `sudo apt install dotnet-sdk-8.0`)
-- Wine
-- [nFPM](https://nfpm.goreleaser.com): `go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest`
-- `google-chrome` (packs the browser extension) and `openssl`
+| Tool | How the script gets it if it's missing |
+|---|---|
+| .NET 8 SDK | Microsoft's `dotnet-install.sh`, into `packaging/.tools` (no root) |
+| [nFPM](https://nfpm.goreleaser.com) | pinned release, checksum-verified, into `packaging/.tools` |
+| curl, python3, openssl | your package manager (apt, dnf, zypper or pacman), after asking |
+| Wine | your package manager, after asking. Debian/Ubuntu: `wine wine64 wine32:i386` (enables i386 first); openSUSE: `wine wine-32bit`; Fedora/Arch: `wine` |
+
+Tools already on your system are used as they are.
 
 ## Build the package
 
@@ -58,7 +62,9 @@ The repository has no Digitrustec files. The build takes them from the official 
    packaging/build.sh ~/Downloads/CTA-V1.4.18.exe
    ```
 
-   - **What it does.** The script runs the installer unattended in a throwaway Wine prefix, to unpack it, then builds against those files. Nothing of it stays installed.
+   - **What it does.** The script runs the installer unattended in a throwaway 64-bit Wine prefix, to unpack it, then builds against those files. Nothing of it stays installed.
+   - **Where the unpack step works.** Tested with stock Wine on Debian 13, Ubuntu 24.04, Fedora 44 and Arch, and with WineHQ on Zorin OS. On openSUSE Tumbleweed it hung in testing; build on another distro (the packages install fine on openSUSE).
+   - **Without a desktop** (servers, CI), wrap the build in a virtual display: `xvfb-run -a packaging/build.sh ...`.
    - **Already installed under Wine?** Run `packaging/build.sh` with no argument. It then uses `~/.wine-theqa/drive_c/users/$USER/AppData/Local/Digitrustec.CTA.Win`; set `CtaDir` to point elsewhere.
 
    Output in `packaging/dist/`:
