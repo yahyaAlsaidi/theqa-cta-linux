@@ -35,22 +35,31 @@ To build the packages you also need:
 
 ## Build the package
 
-1. **Get the official installer.** Download the Windows CTA from Theqa:
-   https://idp-pki.mtcit.gov.om/IdentityReader/DownloadCTA?os=windows
+The repository has no Digitrustec files. The build takes them from the official Windows installer, which you download yourself.
 
-2. **Install it under Wine.** This only copies its files; nothing has to run.
+1. **Clone.**
 
    ```sh
-   WINEPREFIX=~/.wine-theqa wine CTA-V1.4.18.exe
+   git clone https://github.com/yahyaAlsaidi/theqa-cta-linux.git && cd theqa-cta-linux
    ```
 
-   The files land in `~/.wine-theqa/drive_c/users/$USER/AppData/Local/Digitrustec.CTA.Win`. To use another location, set `CtaDir`, e.g. `dotnet build -p:CtaDir=/path/to/Digitrustec.CTA.Win`.
+2. **Get the official installer** (`CTA-V<version>.exe`). The download needs a Theqa session:
+   1. Open https://idp-pki.mtcit.gov.om and choose ID card login.
+   2. Click **Download CTA**. On Windows or macOS that's all.
+   3. On Linux the page says "not supported". Instead, open the browser console on that page (F12, Console) and run:
+
+      ```js
+      location.href = Extensions.getDownloadCtaUrl("windows")
+      ```
 
 3. **Build.**
 
    ```sh
-   packaging/build.sh
+   packaging/build.sh ~/Downloads/CTA-V1.4.18.exe
    ```
+
+   - **What it does.** The script runs the installer unattended in a throwaway Wine prefix, to unpack it, then builds against those files. Nothing of it stays installed.
+   - **Already installed under Wine?** Run `packaging/build.sh` with no argument. It then uses `~/.wine-theqa/drive_c/users/$USER/AppData/Local/Digitrustec.CTA.Win`; set `CtaDir` to point elsewhere.
 
    Output in `packaging/dist/`:
 
@@ -104,7 +113,7 @@ Firefox only force-installs extensions signed by Mozilla. Signing is free and th
    npx web-ext sign --source-dir packaging/browser-ext --channel unlisted \
        --artifacts-dir packaging/browser-ext/web-ext-artifacts
    cp packaging/browser-ext/web-ext-artifacts/*.xpi packaging/firefox-ext.xpi
-   packaging/build.sh
+   packaging/build.sh ~/Downloads/CTA-V1.4.18.exe
    ```
 
 With `packaging/firefox-ext.xpi` present, the packages also install `/etc/firefox/policies/policies.json`, which force-installs it. Commit the signed `.xpi`: Mozilla won't sign the same version twice. Without it, Firefox users can load the userscript (`/usr/share/doc/theqa-cta/theqa-linux.user.js`) in Violentmonkey or Tampermonkey.

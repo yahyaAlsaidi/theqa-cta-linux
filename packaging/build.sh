@@ -4,17 +4,31 @@
 #   theqa-cta-<v>-1.x86_64.rpm           Fedora, RHEL/Alma/Rocky, openSUSE
 #   theqa-cta-<v>-1-x86_64.pkg.tar.zst   Arch, Manjaro, EndeavourOS
 #   theqa-cta-<v>-linux-x64.tar.gz       any other glibc distro (install.sh)
-# Needs: .NET 8 SDK, nfpm, google-chrome + openssl (to pack the browser extension), and the official Windows CTA
-# installed under Wine (CtaDir in cta-linux/*.csproj). The app is self-contained: target machines need no .NET.
+# Usage: packaging/build.sh [path/to/official-CTA-installer.exe]
+# Needs: .NET 8 SDK, nfpm, Wine, google-chrome + openssl (to pack the browser extension).
+# The official CTA files come from the installer you pass (unpacked by an unattended install into a throwaway Wine
+# prefix), or, without an argument, from an existing Wine install (CtaDir in cta-linux/*.csproj).
+# The app is self-contained: target machines need no .NET.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 dist=$here/dist
 stage=$(mktemp -d)
-trap 'rm -rf "$stage" "$stage.yaml" "$stage-tar"' EXIT
+trap 'rm -rf "$stage" "$stage.yaml" "$stage-tar" "$stage-cta"' EXIT
 app=$stage/opt/theqa-cta
 nfpm=$(command -v nfpm || echo "$HOME/go/bin/nfpm")
 
-dotnet publish "$here/../cta-linux" -c Release -r linux-x64 --self-contained -p:DebugType=none -o "$app"
+cta_dir=
+if [ $# -gt 0 ]; then
+  cta_dir=$stage-cta/app
+  mkdir -p "$cta_dir"
+  # mscoree/mshtml off: no Wine Mono/Gecko install prompts (the installer needs neither)
+  export WINEPREFIX="$stage-cta/prefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml="
+  wine "$1" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /NOICONS "/DIR=$(winepath -w "$cta_dir")"
+  wineserver -k 2>/dev/null || true
+  [ -f "$cta_dir/Digitrustec.CTA.Win.dll" ] || { echo "No CTA files after running $1. Is it the official CTA installer?" >&2; exit 1; }
+fi
+
+dotnet publish "$here/../cta-linux" -c Release -r linux-x64 --self-contained -p:DebugType=none ${cta_dir:+"-p:CtaDir=$cta_dir"} -o "$app"
 version=$(grep -o '"Digitrustec.CTA.Linux/[0-9.]*"' "$app/Digitrustec.CTA.Linux.deps.json" | head -1 | sed 's/.*\/\([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
 
 mkdir -p "$stage/usr/bin" "$stage/usr/share/applications" "$stage/etc/xdg/autostart" "$stage/usr/share/doc/theqa-cta"
