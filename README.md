@@ -123,59 +123,60 @@ The extension isn't installed automatically in Firefox yet. Instead, add a users
 
 ## Build from source
 
-Only needed if you want to build the packages yourself. The repository has no Digitrustec files: the build takes them from the official Windows installer.
+Only needed if you want to build the package yourself. To just use it, see [Install](#install).
 
-Building needs nothing set up in advance besides a desktop session (the official installer opens a window, even when unattended). `packaging/build.sh` takes care of its tools:
+```sh
+git clone https://github.com/yahyaAlsaidi/theqa-cta-linux.git && cd theqa-cta-linux
+packaging/build.sh --install
+```
 
-| Tool | How the script gets it if it's missing |
+That one command:
+
+1. **Detects your distro** from its package manager, and builds only the package it needs:
+
+   | Your package manager | Built (in `packaging/dist/`) |
+   |---|---|
+   | apt (Debian, Ubuntu, Mint, Pop!_OS, Zorin) | `theqa-cta_1.4.18_amd64.deb` |
+   | dnf or zypper (Fedora, RHEL, AlmaLinux, Rocky, openSUSE) | `theqa-cta-1.4.18-1.x86_64.rpm` |
+   | pacman (Arch, Manjaro, EndeavourOS) | `theqa-cta-1.4.18-1-x86_64.pkg.tar.zst` |
+   | anything else | `theqa-cta-1.4.18-linux-x64.tar.gz` |
+
+2. **Sets up the build tools it's missing** (see [Build tools](#build-tools)).
+3. **Installs the package** (`--install`), and reinstalls it on later rebuilds. Without `--install` it only builds.
+
+To build every format, e.g. for a release, run `packaging/build.sh --all`.
+
+### Where the CTA files come from
+
+The build needs Digitrustec's CTA files (their unchanged DLLs and `ChainCertificates`). It takes them from the first of these that applies:
+
+1. **The official installer**, if you pass it: `packaging/build.sh --install ~/Downloads/CTA-V1.4.18.exe`.
+   - **Unattended unpack.** The script runs the installer unattended in a throwaway 64-bit Wine prefix, only to unpack it.
+   - **Desktop needed.** This needs a desktop session, because the installer opens a window even when unattended. Without one (servers, CI), use `xvfb-run -a packaging/build.sh ...`.
+   - **Tested** with stock Wine on Debian 13, Ubuntu 24.04, Fedora 44 and Arch, and with WineHQ on Zorin OS. On openSUSE Tumbleweed it hung, so build on another distro (the packages install fine on openSUSE).
+   - **Getting the installer.** Open https://idp-pki.mtcit.gov.om, choose ID card login and click **Download CTA**. On Linux the page says "not supported"; open the browser console there (F12, Console) and run `location.href = Extensions.getDownloadCtaUrl("windows")`.
+2. **`cta-linux/vendor/`**, if it contains the CTA files. No installer and no Wine needed.
+3. **An existing Wine install** of the official CTA, at `~/.wine-theqa/drive_c/users/$USER/AppData/Local/Digitrustec.CTA.Win`. To use another path, set `CtaDir`.
+
+The package version is the version of the CTA files used.
+
+### Build tools
+
+Nothing has to be set up in advance. Tools already on your system are used as they are; missing ones are set up like this:
+
+| Tool | How `packaging/build.sh` gets it |
 |---|---|
 | .NET 8 SDK | Microsoft's `dotnet-install.sh`, into `packaging/.tools` (no root) |
 | [nFPM](https://nfpm.goreleaser.com) | pinned release, checksum-verified, into `packaging/.tools` |
 | curl, python3, openssl | your package manager (apt, dnf, zypper or pacman), after asking |
-| Wine | your package manager, after asking. Debian/Ubuntu: `wine wine64 wine32:i386` (enables i386 first); openSUSE: `wine wine-32bit`; Fedora/Arch: `wine` |
+| Wine (only with an installer argument) | your package manager, after asking. Debian/Ubuntu: `wine wine64 wine32:i386` (enables i386 first); openSUSE: `wine wine-32bit`; Fedora/Arch: `wine` |
 
-Tools already on your system are used as they are.
+Notes:
 
-1. **Clone.**
+- **Contents.** Every package carries the same files. Only the dependency names differ per distro: pcsc-lite (smart-card service) and the CCID reader driver.
+- **Extension key.** The first build generates `packaging/browser-ext.pem`, the extension signing key. Keep it: it fixes the extension ID across updates. It is git-ignored and never packaged.
 
-   ```sh
-   git clone https://github.com/yahyaAlsaidi/theqa-cta-linux.git && cd theqa-cta-linux
-   ```
-
-2. **Get the official installer** (`CTA-V<version>.exe`). The download needs a Theqa session:
-   1. Open https://idp-pki.mtcit.gov.om and choose ID card login.
-   2. Click **Download CTA**. On Windows or macOS that's all.
-   3. On Linux the page says "not supported". Instead, open the browser console on that page (F12, Console) and run:
-
-      ```js
-      location.href = Extensions.getDownloadCtaUrl("windows")
-      ```
-
-3. **Build.**
-
-   ```sh
-   packaging/build.sh ~/Downloads/CTA-V1.4.18.exe
-   ```
-
-   - **What it does.** The script runs the installer unattended in a throwaway 64-bit Wine prefix, to unpack it, then builds against those files. Nothing of it stays installed.
-   - **Where the unpack step works.** Tested with stock Wine on Debian 13, Ubuntu 24.04, Fedora 44 and Arch, and with WineHQ on Zorin OS. On openSUSE Tumbleweed it hung in testing; build on another distro (the packages install fine on openSUSE).
-   - **Without a desktop** (servers, CI), wrap the build in a virtual display: `xvfb-run -a packaging/build.sh ...`.
-   - **Already installed under Wine?** Run `packaging/build.sh` with no argument. It then uses `~/.wine-theqa/drive_c/users/$USER/AppData/Local/Digitrustec.CTA.Win`; set `CtaDir` to point elsewhere.
-
-   Output in `packaging/dist/`:
-
-   | File | For |
-   |---|---|
-   | `theqa-cta_1.4.18_amd64.deb` | Debian, Ubuntu, Mint, Pop!_OS, Zorin |
-   | `theqa-cta-1.4.18-1.x86_64.rpm` | Fedora, RHEL, AlmaLinux, Rocky, openSUSE |
-   | `theqa-cta-1.4.18-1-x86_64.pkg.tar.zst` | Arch, Manjaro, EndeavourOS |
-   | `theqa-cta-1.4.18-linux-x64.tar.gz` | any other glibc distro |
-
-   - **Version.** It matches the CTA version you built from.
-   - **Contents.** Every package carries the same files. Only the dependency names differ per distro: pcsc-lite (smart-card service) and the CCID reader driver.
-   - **Extension key.** The first build generates `packaging/browser-ext.pem`, the extension signing key. Keep it: it fixes the extension ID across updates. It is git-ignored and never packaged.
-
-> The packages contain Digitrustec's assemblies, so don't publish them without their permission.
+> The packages contain Digitrustec's assemblies. Publish them only with Digitrustec's permission.
 
 ### Firefox
 
@@ -193,7 +194,7 @@ Firefox only force-installs extensions signed by Mozilla. Signing is free and th
    npx web-ext sign --source-dir packaging/browser-ext --channel unlisted \
        --artifacts-dir packaging/browser-ext/web-ext-artifacts
    cp packaging/browser-ext/web-ext-artifacts/*.xpi packaging/firefox-ext.xpi
-   packaging/build.sh ~/Downloads/CTA-V1.4.18.exe
+   packaging/build.sh --all
    ```
 
 With `packaging/firefox-ext.xpi` present, the packages also install `/etc/firefox/policies/policies.json`, which force-installs it. Commit the signed `.xpi`: Mozilla won't sign the same version twice. Without it, Firefox users can load the userscript (`/usr/share/doc/theqa-cta/theqa-linux.user.js`) in Violentmonkey or Tampermonkey.
@@ -271,7 +272,7 @@ Because of the policy, the browser shows "Managed by your organization", and the
 | `cta-linux/Digitrustec.CTA.Linux.csproj` | references the official assemblies from `CtaDir`, version stamping |
 | `cta-linux/probe.py` | hub test client |
 | `cta-linux/appicon.png` | tray / menu icon |
-| `packaging/build.sh` | builds all packages with nFPM, plus the tarball |
+| `packaging/build.sh` | builds the package for this distro (`--all`: every format), `--install` installs it |
 | `packaging/postinstall.sh` | package post-install: starts `pcscd.socket` |
 | `packaging/install.sh` | tarball installer / uninstaller |
 | `packaging/browser-ext/` | browser extension (Chromium and Firefox) |

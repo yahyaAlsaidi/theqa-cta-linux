@@ -1,15 +1,23 @@
 #!/bin/sh
-# Builds Theqa CTA for Linux into packaging/dist/:
-#   theqa-cta_<v>_amd64.deb              Debian, Ubuntu, Mint, Pop!_OS, Zorin
-#   theqa-cta-<v>-1.x86_64.rpm           Fedora, RHEL/Alma/Rocky, openSUSE
-#   theqa-cta-<v>-1-x86_64.pkg.tar.zst   Arch, Manjaro, EndeavourOS
-#   theqa-cta-<v>-linux-x64.tar.gz       any other glibc distro (install.sh)
-# Usage: packaging/build.sh [path/to/official-CTA-installer.exe]
+# Builds Theqa CTA for Linux into packaging/dist/. By default only the package this machine needs (detected from its
+# package manager); --all builds every format:
+#   theqa-cta_<v>_amd64.deb              apt:    Debian, Ubuntu, Mint, Pop!_OS, Zorin
+#   theqa-cta-<v>-1.x86_64.rpm           dnf/zypper: Fedora, RHEL/Alma/Rocky, openSUSE
+#   theqa-cta-<v>-1-x86_64.pkg.tar.zst   pacman: Arch, Manjaro, EndeavourOS
+#   theqa-cta-<v>-linux-x64.tar.gz       anything else (install.sh)
+# Usage: packaging/build.sh [--install] [--all] [path/to/official-CTA-installer.exe]
+#   --install   also install the package on this machine when the build is done
+#   --all       build all formats (for a release)
 # The official CTA files come from the installer you pass (unpacked by an unattended install into a throwaway Wine
-# prefix), or, without an argument, from an existing Wine install (CtaDir in cta-linux/*.csproj).
+# prefix), or, without an argument, from cta-linux/vendor/ or an existing Wine install (CtaDir in cta-linux/*.csproj).
 # Build tools are set up on first run: .NET 8 SDK and nFPM go into packaging/.tools (no root); curl, python3, openssl
 # and Wine come from the distro's package manager (asks first). The app is self-contained: targets need no .NET.
 set -eu
+install= all=
+while [ $# -gt 0 ]; do
+  case $1 in --install) install=1 ;; --all) all=1 ;; *) break ;; esac
+  shift
+done
 here=$(cd "$(dirname "$0")" && pwd)
 dist=$here/dist
 tools=$here/.tools
@@ -20,6 +28,9 @@ mkdir -p "$tools"
 
 sudo=$([ "$(id -u)" = 0 ] || echo sudo)
 pm=$(for p in apt-get dnf zypper pacman; do command -v $p >/dev/null && echo $p && break; done)
+case $pm in apt-get) formats=deb ;; dnf|zypper) formats=rpm ;; pacman) formats=archlinux ;; *) formats=tar ;; esac
+[ -z "$all" ] || formats="deb rpm archlinux tar"
+echo "Building: $formats"
 need() { # need <command> <apt packages> <dnf packages> <zypper packages> <pacman packages>
   command -v "$1" >/dev/null && return 0
   case $pm in apt-get) pkgs=$2 ;; dnf) pkgs=$3 ;; zypper) pkgs=$4 ;; pacman) pkgs=$5 ;; *) echo "Install $1, then run again." >&2; exit 1 ;; esac
@@ -49,7 +60,7 @@ if ! dotnet --list-sdks 2>/dev/null | grep -q '^8\.'; then
 fi
 # nFPM: one on PATH, else the pinned release into .tools (checksum-verified)
 nfpm=$(command -v nfpm || echo "$tools/nfpm")
-if [ ! -x "$nfpm" ]; then
+if [ "$formats" != tar ] && [ ! -x "$nfpm" ]; then
   nfpm_version=2.47.0
   tgz=nfpm_${nfpm_version}_Linux_x86_64.tar.gz
   url=https://github.com/goreleaser/nfpm/releases/download/v$nfpm_version
@@ -171,13 +182,28 @@ EOF
     fi
   done
 } > "$stage.yaml"
-for packager in deb rpm archlinux; do
-  "$nfpm" package --config "$stage.yaml" --packager "$packager" --target "$dist/"
+for packager in $formats; do
+  [ "$packager" = tar ] || "$nfpm" package --config "$stage.yaml" --packager "$packager" --target "$dist/"
 done
 
 # Everything else: tarball + install.sh
-mkdir -p "$stage-tar/theqa-cta-$version"
-cp -a "$stage" "$stage-tar/theqa-cta-$version/files"
-cp "$here/install.sh" "$stage-tar/theqa-cta-$version/"
-tar -C "$stage-tar" --owner=0 --group=0 -czf "$dist/theqa-cta-$version-linux-x64.tar.gz" "theqa-cta-$version"
+case $formats in *tar*)
+  mkdir -p "$stage-tar/theqa-cta-$version"
+  cp -a "$stage" "$stage-tar/theqa-cta-$version/files"
+  cp "$here/install.sh" "$stage-tar/theqa-cta-$version/"
+  tar -C "$stage-tar" --owner=0 --group=0 -czf "$dist/theqa-cta-$version-linux-x64.tar.gz" "theqa-cta-$version" ;;
+esac
 ls -l "$dist"
+
+# --install: the package for this distro (reinstalls when the same version is already there, e.g. after a rebuild)
+if [ -n "$install" ]; then
+  case $pm in
+    apt-get) $sudo apt-get install -y --reinstall "$dist/theqa-cta_${version}_amd64.deb" ;;
+    dnf) rpm -q theqa-cta >/dev/null 2>&1 && $sudo dnf reinstall -y "$dist/theqa-cta-$version-1.x86_64.rpm" \
+           || $sudo dnf install -y "$dist/theqa-cta-$version-1.x86_64.rpm" ;;
+    zypper) $sudo zypper install -y --force --allow-unsigned-rpm "$dist/theqa-cta-$version-1.x86_64.rpm" ;;
+    pacman) $sudo pacman -U --noconfirm "$dist/theqa-cta-$version-1-x86_64.pkg.tar.zst" ;;
+    *) $sudo "$stage-tar/theqa-cta-$version/install.sh" ;;
+  esac
+  echo "Installed. Restart your browser, then log out and back in (or run theqa-cta)."
+fi

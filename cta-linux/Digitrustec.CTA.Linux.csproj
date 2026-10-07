@@ -8,6 +8,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- No culture-specific code in the CTA; drops the libicu dependency (named differently on every distro). -->
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Official CTA files: cta-linux/vendor when present, else an existing Wine install -->
+    <CtaDir Condition="'$(CtaDir)' == '' And Exists('$(MSBuildThisFileDirectory)vendor/Digitrustec.CTA.Win.dll')">$(MSBuildThisFileDirectory)vendor</CtaDir>
     <CtaDir Condition="'$(CtaDir)' == ''">$(HOME)/.wine-theqa/drive_c/users/$(USER)/AppData/Local/Digitrustec.CTA.Win</CtaDir>
   </PropertyGroup>
 
