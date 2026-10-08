@@ -1,10 +1,11 @@
 #!/bin/sh
 # Builds Theqa CTA for Linux into packaging/dist/. By default only the package this machine needs (detected from its
 # package manager); --all builds every format:
-#   theqa-cta_<v>_amd64.deb              apt:    Debian, Ubuntu, Mint, Pop!_OS, Zorin
-#   theqa-cta-<v>-1.x86_64.rpm           dnf/zypper: Fedora, RHEL/Alma/Rocky, openSUSE
-#   theqa-cta-<v>-1-x86_64.pkg.tar.zst   pacman: Arch, Manjaro, EndeavourOS
-#   theqa-cta-<v>-linux-x64.tar.gz       anything else (install.sh)
+#   theqa-cta_amd64.deb                  apt:    Debian, Ubuntu, Mint, Pop!_OS, Zorin
+#   theqa-cta.x86_64.rpm                 dnf/zypper: Fedora, RHEL/Alma/Rocky, openSUSE
+#   theqa-cta-x86_64.pkg.tar.zst         pacman: Arch, Manjaro, EndeavourOS
+#   theqa-cta-linux-x64.tar.gz           anything else (install.sh)
+# File names carry no version (release links can point at "latest"); the version is inside the packages.
 # Usage: packaging/build.sh [--install] [--all] [path/to/official-CTA-installer.exe]
 #   --install   also install the package on this machine when the build is done
 #   --all       build all formats (for a release)
@@ -98,6 +99,7 @@ fi
 
 dotnet publish "$here/../cta-linux" -c Release -r linux-x64 --self-contained -p:DebugType=none ${cta_dir:+"-p:CtaDir=$cta_dir"} -o "$app"
 version=$(grep -o '"Digitrustec.CTA.Linux/[0-9.]*"' "$app/Digitrustec.CTA.Linux.deps.json" | head -1 | sed 's/.*\/\([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
+pkg_release=2  # bump when the packaging changes but the CTA version doesn't (apt/dnf/pacman then see an upgrade)
 
 mkdir -p "$stage/usr/bin" "$stage/usr/share/applications" "$stage/etc/xdg/autostart" "$stage/usr/share/doc/theqa-cta"
 ln -s /opt/theqa-cta/Digitrustec.CTA.Linux "$stage/usr/bin/theqa-cta"
@@ -170,6 +172,7 @@ rm -rf "$dist" && mkdir -p "$dist"
 name: theqa-cta
 arch: amd64
 version: $version
+release: $pkg_release
 maintainer: yahya.saidi <al.saidi.yahya1@gmail.com>
 description: |-
   Digitrustec CTA (Identity Reader) for Linux.
@@ -199,7 +202,10 @@ EOF
   done
 } > "$stage.yaml"
 for packager in $formats; do
-  [ "$packager" = tar ] || "$nfpm" package --config "$stage.yaml" --packager "$packager" --target "$dist/"
+  case $packager in
+    deb) out=theqa-cta_amd64.deb ;; rpm) out=theqa-cta.x86_64.rpm ;; archlinux) out=theqa-cta-x86_64.pkg.tar.zst ;; *) continue ;;
+  esac
+  "$nfpm" package --config "$stage.yaml" --packager "$packager" --target "$dist/$out"
 done
 
 # Everything else: tarball + install.sh
@@ -207,18 +213,18 @@ case $formats in *tar*)
   mkdir -p "$stage-tar/theqa-cta-$version"
   cp -a "$stage" "$stage-tar/theqa-cta-$version/files"
   cp "$here/install.sh" "$stage-tar/theqa-cta-$version/"
-  tar -C "$stage-tar" --owner=0 --group=0 -czf "$dist/theqa-cta-$version-linux-x64.tar.gz" "theqa-cta-$version" ;;
+  tar -C "$stage-tar" --owner=0 --group=0 -czf "$dist/theqa-cta-linux-x64.tar.gz" "theqa-cta-$version" ;;
 esac
 ls -l "$dist"
 
 # --install: the package for this distro (reinstalls when the same version is already there, e.g. after a rebuild)
 if [ -n "$install" ]; then
   case $pm in
-    apt-get) $sudo apt-get install -y --reinstall "$dist/theqa-cta_${version}_amd64.deb" ;;
-    dnf) rpm -q theqa-cta >/dev/null 2>&1 && $sudo dnf reinstall -y "$dist/theqa-cta-$version-1.x86_64.rpm" \
-           || $sudo dnf install -y "$dist/theqa-cta-$version-1.x86_64.rpm" ;;
-    zypper) $sudo zypper install -y --force --allow-unsigned-rpm "$dist/theqa-cta-$version-1.x86_64.rpm" ;;
-    pacman) $sudo pacman -U --noconfirm "$dist/theqa-cta-$version-1-x86_64.pkg.tar.zst" ;;
+    apt-get) $sudo apt-get install -y --reinstall "$dist/theqa-cta_amd64.deb" ;;
+    dnf) rpm -q theqa-cta >/dev/null 2>&1 && $sudo dnf reinstall -y "$dist/theqa-cta.x86_64.rpm" \
+           || $sudo dnf install -y "$dist/theqa-cta.x86_64.rpm" ;;
+    zypper) $sudo zypper install -y --force --allow-unsigned-rpm "$dist/theqa-cta.x86_64.rpm" ;;
+    pacman) $sudo pacman -U --noconfirm "$dist/theqa-cta-x86_64.pkg.tar.zst" ;;
     *) $sudo "$stage-tar/theqa-cta-$version/install.sh" ;;
   esac
   echo "Installed. Restart your browser, then log out and back in (or run theqa-cta)."

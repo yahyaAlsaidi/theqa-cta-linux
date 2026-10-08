@@ -5,6 +5,7 @@ packaging/dist/
 packaging/.tools/
 packaging/*.crx
 packaging/browser-ext/web-ext-artifacts/
+packaging/browser-ext/.amo-upload-uuid
 
 # Extension signing key (fixes the extension ID; keep it, never publish it)
 packaging/*.pem

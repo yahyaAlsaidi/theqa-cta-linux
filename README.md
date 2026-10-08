@@ -18,43 +18,43 @@ You need:
 
 - 64-bit (x86-64) Linux
 - a USB smart-card reader (tested: Alcor Link AK9563)
-- Google Chrome, Chromium, Brave or Edge (Firefox: see [Firefox users](#firefox-users))
+- Google Chrome, Chromium, Brave, Edge, or Firefox 140+
 
 ### 1. Download and install the package for your distro
 
 **Debian, Ubuntu, Linux Mint, Pop!_OS, Zorin OS**
 
 ```sh
-curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/theqa-cta_1.4.18_amd64.deb
-sudo apt install ./theqa-cta_1.4.18_amd64.deb
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/latest/download/theqa-cta_amd64.deb
+sudo apt install ./theqa-cta_amd64.deb
 ```
 
 **Fedora, RHEL, AlmaLinux, Rocky Linux**
 
 ```sh
-curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/theqa-cta-1.4.18-1.x86_64.rpm
-sudo dnf install ./theqa-cta-1.4.18-1.x86_64.rpm
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/latest/download/theqa-cta.x86_64.rpm
+sudo dnf install ./theqa-cta.x86_64.rpm
 ```
 
 **openSUSE**
 
 ```sh
-curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/theqa-cta-1.4.18-1.x86_64.rpm
-sudo zypper install --allow-unsigned-rpm ./theqa-cta-1.4.18-1.x86_64.rpm
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/latest/download/theqa-cta.x86_64.rpm
+sudo zypper install --allow-unsigned-rpm ./theqa-cta.x86_64.rpm
 ```
 
 **Arch Linux, Manjaro, EndeavourOS**
 
 ```sh
-curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/theqa-cta-1.4.18-1-x86_64.pkg.tar.zst
-sudo pacman -U ./theqa-cta-1.4.18-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/latest/download/theqa-cta-x86_64.pkg.tar.zst
+sudo pacman -U ./theqa-cta-x86_64.pkg.tar.zst
 ```
 
 **Any other distro**
 
 ```sh
-curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/theqa-cta-1.4.18-linux-x64.tar.gz
-tar -xzf theqa-cta-1.4.18-linux-x64.tar.gz && sudo ./theqa-cta-1.4.18/install.sh
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/latest/download/theqa-cta-linux-x64.tar.gz
+tar -xzf theqa-cta-linux-x64.tar.gz && sudo ./theqa-cta-*/install.sh
 ```
 
 The packages also install your distro's smart-card service (pcsc-lite) and USB reader driver (CCID), and start the service. For the tarball, `install.sh` tells you what to install if they're missing.
@@ -62,7 +62,7 @@ The packages also install your distro's smart-card service (pcsc-lite) and USB r
 To check a download (optional):
 
 ```sh
-curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v1.4.18-1/SHA256SUMS
+curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/latest/download/SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS
 ```
 
@@ -86,7 +86,7 @@ Removing also removes the browser policy and extension.
 
 ### Firefox users
 
-The package sets a Firefox policy that lets the login page reach the CTA without a permission prompt (Firefox 145 and newer). The extension itself isn't installed automatically in Firefox yet. Until it is, add a userscript manager (Violentmonkey or Tampermonkey) and load `/usr/share/doc/theqa-cta/theqa-linux.user.js`, which is installed with the package. Restart Firefox after installing.
+Works the same way in Firefox 140 and newer: the package installs the extension and lets the login page reach the CTA. Restart Firefox after installing.
 
 ## Usage
 
@@ -128,10 +128,10 @@ That one command:
 
    | Your package manager | Built (in `packaging/dist/`) |
    |---|---|
-   | apt (Debian, Ubuntu, Mint, Pop!_OS, Zorin) | `theqa-cta_1.4.18_amd64.deb` |
-   | dnf or zypper (Fedora, RHEL, AlmaLinux, Rocky, openSUSE) | `theqa-cta-1.4.18-1.x86_64.rpm` |
-   | pacman (Arch, Manjaro, EndeavourOS) | `theqa-cta-1.4.18-1-x86_64.pkg.tar.zst` |
-   | anything else | `theqa-cta-1.4.18-linux-x64.tar.gz` |
+   | apt (Debian, Ubuntu, Mint, Pop!_OS, Zorin) | `theqa-cta_amd64.deb` |
+   | dnf or zypper (Fedora, RHEL, AlmaLinux, Rocky, openSUSE) | `theqa-cta.x86_64.rpm` |
+   | pacman (Arch, Manjaro, EndeavourOS) | `theqa-cta-x86_64.pkg.tar.zst` |
+   | anything else | `theqa-cta-linux-x64.tar.gz` |
 
 2. **Sets up the build tools it's missing** (see [Build tools](#build-tools)).
 3. **Installs the package** (`--install`), and reinstalls it on later rebuilds. Without `--install` it only builds.
@@ -157,7 +157,7 @@ Notes:
 
 ### Firefox
 
-Firefox only force-installs extensions signed by Mozilla. Signing is free and the extension stays unlisted (private). It is a one-time setup per extension version:
+The packages include the extension signed by Mozilla (`packaging/firefox-ext.xpi`); Firefox only force-installs signed extensions. After changing the extension, raise `version` in `packaging/browser-ext/manifest.json` and sign it again (free, unlisted):
 
 1. Create API credentials at https://addons.mozilla.org/developers/addon/api/key/ and put them in your shell environment. Never commit them.
 
@@ -178,7 +178,7 @@ The packages always install a Firefox policy (`/etc/firefox/policies/policies.js
 
 ## Limitations
 
-- **Firefox.** It needs the signed extension ([Firefox](#firefox)). Firefox 140 or newer is required.
+- **Firefox.** Version 140 or newer.
 - **Snap and Flatpak browsers.** They don't read the policies in `/etc`, and may not be able to read `/opt`. Untested: use the userscript there. Google Chrome, Brave and Edge are normal packages, not snaps.
 - **Tray on plain GNOME.** Fedora, Debian and Arch's GNOME show no tray icons without the "AppIndicator and KStatusNotifierItem Support" extension. The app still works; the icon just isn't visible. KDE, Cinnamon, XFCE and Ubuntu-based desktops show it.
 - **Architecture.** x86-64 with glibc only. ARM64 or musl (Alpine) would need `-r linux-arm64` / `linux-musl-x64` builds.

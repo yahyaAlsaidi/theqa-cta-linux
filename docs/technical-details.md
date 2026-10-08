@@ -78,7 +78,7 @@ The `.deb` installs it with no user action through browser policy:
 |---|---|
 | `/opt/theqa-cta/browser-ext.crx`, `browser-ext.xml` | packed extension + local (`file://`) update manifest |
 | `/etc/opt/chrome/policies/managed/theqa-cta.json`, same under `/etc/chromium`, `/etc/chromium-browser`, `/etc/brave`, `/etc/opt/edge` | `ExtensionInstallForcelist` installs the extension. `LocalNetworkAccessAllowedForUrls` lets the page reach `localhost:5234` without a permission prompt |
-| `/etc/firefox/policies/policies.json` (and `/etc/firefox-esr/...`) | `LocalNetworkAccess` with `SkipDomains` lets the page reach `localhost:5234` without a prompt (Firefox 145+). Once a Mozilla-signed `/opt/theqa-cta/firefox-ext.xpi` is shipped, `ExtensionSettings` force-installs the extension |
+| `/etc/firefox/policies/policies.json` (and `/etc/firefox-esr/...`) | `LocalNetworkAccess` with `SkipDomains` lets the page reach `localhost:5234` without a prompt (Firefox 145+). `ExtensionSettings` force-installs the Mozilla-signed extension (`/opt/theqa-cta/firefox-ext.xpi`) |
 
 Because of the policy, the browser shows "Managed by your organization", and the extension can't be removed from inside the browser. Uninstalling the package removes both. To ship a change to the extension, raise `version` in its `manifest.json`.
 
