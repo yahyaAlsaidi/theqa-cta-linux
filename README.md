@@ -117,6 +117,8 @@ The extension isn't installed automatically in Firefox yet. Instead, add a users
 
 Only needed if you want to build the package yourself. To just use it, see [Install](#install).
 
+Digitrustec's CTA files are already in the repository (`cta-linux/vendor/`), so nothing else is needed.
+
 ```sh
 git clone https://github.com/yahyaAlsaidi/theqa-cta-linux.git && cd theqa-cta-linux
 packaging/build.sh --install
@@ -138,24 +140,6 @@ That one command:
 
 To build every format, e.g. for a release, run `packaging/build.sh --all`.
 
-### Where the CTA files come from
-
-The build needs Digitrustec's CTA files: their unchanged DLLs and `ChainCertificates`. The repository includes them in `cta-linux/vendor/`, so a normal build needs nothing else: no Windows installer, no Wine.
-
-To build against a different CTA version, pass its official Windows installer instead:
-
-```sh
-packaging/build.sh --install ~/Downloads/CTA-V<version>.exe
-```
-
-- **Unattended unpack.** The script runs the installer unattended in a throwaway 64-bit Wine prefix, only to unpack it. It sets up Wine if needed.
-- **Desktop needed.** Unpacking needs a desktop session, because the installer opens a window even when unattended. Without one (servers, CI), use `xvfb-run -a packaging/build.sh ...`.
-- **Tested** with stock Wine on Debian 13, Ubuntu 24.04, Fedora 44 and Arch, and with WineHQ on Zorin OS. It hung on openSUSE Tumbleweed.
-- **Getting the installer.** Open https://idp-pki.mtcit.gov.om, choose ID card login and click **Download CTA**. On Linux the page says "not supported"; open the browser console there (F12, Console) and run `location.href = Extensions.getDownloadCtaUrl("windows")`.
-- **Bundling the new version.** To make a new CTA version the default, replace the files in `cta-linux/vendor/` with the same files from the new version.
-
-The package version is the version of the CTA files used.
-
 ### Build tools
 
 Nothing has to be set up in advance. Tools already on your system are used as they are; missing ones are set up like this:
@@ -165,7 +149,6 @@ Nothing has to be set up in advance. Tools already on your system are used as th
 | .NET 8 SDK | Microsoft's `dotnet-install.sh`, into `packaging/.tools` (no root) |
 | [nFPM](https://nfpm.goreleaser.com) | pinned release, checksum-verified, into `packaging/.tools` |
 | curl, python3, openssl | your package manager (apt, dnf, zypper or pacman), after asking |
-| Wine (only with an installer argument) | your package manager, after asking. Debian/Ubuntu: `wine wine64 wine32:i386` (enables i386 first); openSUSE: `wine wine-32bit`; Fedora/Arch: `wine` |
 
 Notes:
 
@@ -331,5 +314,22 @@ Browser side, tested in a fresh headless Chrome 152 profile with the package ins
 - **eToken.** eToken (`ETokenHub`) login doesn't work: the official code loads a hardcoded Windows PKCS#11 DLL path.
 - **One desktop user at a time.** The port, 5234, is fixed.
 - **Card photo.** It is returned as raw JPEG 2000, the same as on Windows.
-- **New CTA versions.** A newer official CTA needs a rebuild.
+- **New CTA versions.** A newer official CTA needs a rebuild ([Advanced](#advanced-building-with-another-cta-version)).
 - **Page changes.** The browser fix depends on the login page's current OS check. The proper fix is for the service to accept Linux.
+
+## Advanced: building with another CTA version
+
+Normal builds use the CTA files in `cta-linux/vendor/` and need none of this. To build against a different CTA version, pass its official Windows installer:
+
+```sh
+packaging/build.sh --install ~/Downloads/CTA-V<version>.exe
+```
+
+- **Unattended unpack.** The script runs the installer unattended in a throwaway 64-bit Wine prefix, only to unpack it. It sets up Wine if needed.
+- **Desktop needed.** Unpacking needs a desktop session, because the installer opens a window even when unattended. Without one (servers, CI), use `xvfb-run -a packaging/build.sh ...`.
+- **Tested** with stock Wine on Debian 13, Ubuntu 24.04, Fedora 44 and Arch, and with WineHQ on Zorin OS. It hung on openSUSE Tumbleweed.
+- **Getting the installer.** Open https://idp-pki.mtcit.gov.om, choose ID card login and click **Download CTA**. On Linux the page says "not supported"; open the browser console there (F12, Console) and run `location.href = Extensions.getDownloadCtaUrl("windows")`.
+- **Wine.** The script installs it with your package manager after asking: `wine wine64 wine32:i386` on Debian/Ubuntu (enables i386 first), `wine wine-32bit` on openSUSE, `wine` on Fedora/Arch.
+- **Bundling the new version.** To make a new CTA version the default, replace the files in `cta-linux/vendor/` with the same files from the new version.
+
+The package version is the version of the CTA files used.
