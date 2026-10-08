@@ -10,8 +10,6 @@ On Windows and macOS, the Theqa login uses a small helper app from Digitrustec (
 | build the package myself | [Build from source](#build-from-source): two commands |
 | understand how it works | [Technical details](#technical-details) |
 
-> **Unofficial.** Not affiliated with or endorsed by Digitrustec or MTCIT. Digitrustec's CTA components are included unchanged, in `cta-linux/vendor/` and in the release packages.
-
 ## Install
 
 Ready-made packages are on the [Releases page](https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/latest). Nothing else to download: no Windows installer, no build tools.
