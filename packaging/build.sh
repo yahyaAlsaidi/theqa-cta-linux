@@ -99,7 +99,7 @@ fi
 
 dotnet publish "$here/../cta-linux" -c Release -r linux-x64 --self-contained -p:DebugType=none ${cta_dir:+"-p:CtaDir=$cta_dir"} -o "$app"
 version=$(grep -o '"Digitrustec.CTA.Linux/[0-9.]*"' "$app/Digitrustec.CTA.Linux.deps.json" | head -1 | sed 's/.*\/\([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
-pkg_release=2  # bump when the packaging changes but the CTA version doesn't (apt/dnf/pacman then see an upgrade)
+pkg_release=3  # bump when the packaging changes but the CTA version doesn't (apt/dnf/pacman then see an upgrade)
 
 mkdir -p "$stage/usr/bin" "$stage/usr/share/applications" "$stage/etc/xdg/autostart" "$stage/usr/share/doc/theqa-cta"
 ln -s /opt/theqa-cta/Digitrustec.CTA.Linux "$stage/usr/bin/theqa-cta"
