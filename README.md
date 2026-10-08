@@ -2,23 +2,15 @@
 
 Use your **Oman ID card** to log in to **Theqa** ([idp-pki.mtcit.gov.om](https://idp-pki.mtcit.gov.om)) on Linux.
 
-The login page talks to a local helper app, Digitrustec's **CTA / Identity Reader**, which only exists for Windows and macOS. This project runs that same helper natively on Linux. It reuses the official CTA's own .NET assemblies unchanged and replaces only the Windows-specific shell (WPF window, tray, Win32 calls) with a small Linux host.
+On Windows and macOS, the Theqa login uses a small helper app from Digitrustec (the **CTA**, or Identity Reader) to read your card. This project brings that app to Linux: install one package, plug in your card reader, and log in as usual.
+
+| I want to... | Go to |
+|---|---|
+| use it on my computer | [Install](#install): download one file, install it |
+| build the package myself | [Build from source](#build-from-source): two commands |
+| understand how it works | [Technical details](#technical-details) |
 
 > **Unofficial.** Not affiliated with or endorsed by Digitrustec or MTCIT. The ready-made packages on the Releases page include Digitrustec's CTA components; the source in this repository does not.
-
-## How it works
-
-```
-Browser (idp-pki.mtcit.gov.om)
-  -> SignalR over WebSocket: http://localhost:5234/SmartCardHub
-     Linux host (this repo: cta-linux/Program.cs, Avalonia tray)
-       -> Digitrustec CTA assemblies, unchanged (hubs, Oman ID logic, card library)
-          -> PC/SC (pcsc-sharp) -> pcscd -> USB card reader
-```
-
-- **Portable assemblies.** The official CTA is .NET 8. Everything except its WPF shell (`Digitrustec.CTA.Win.dll`) already runs on Linux. Card access goes through PC/SC, which works with Linux's `pcscd` as-is.
-- **Same host, minus Windows.** The Linux host registers the same services, SignalR hubs and port as the Windows app. Results therefore come back exactly as the Theqa server expects (they are signed and encrypted for the server by the original code).
-- **Browser side.** The login page only accepts Windows and macOS, so a tiny browser extension makes that one site see Windows ([details](#browser-side)). The package installs it automatically in Chromium-based browsers.
 
 ## Install
 
@@ -130,6 +122,8 @@ git clone https://github.com/yahyaAlsaidi/theqa-cta-linux.git && cd theqa-cta-li
 packaging/build.sh --install
 ```
 
+If it says *No CTA files found*, add the official Windows installer to the command, e.g. `packaging/build.sh --install ~/Downloads/CTA-V1.4.18.exe` (see [Where the CTA files come from](#where-the-cta-files-come-from)).
+
 That one command:
 
 1. **Detects your distro** from its package manager, and builds only the package it needs:
@@ -200,6 +194,22 @@ Firefox only force-installs extensions signed by Mozilla. Signing is free and th
 With `packaging/firefox-ext.xpi` present, the packages also install `/etc/firefox/policies/policies.json`, which force-installs it. Commit the signed `.xpi`: Mozilla won't sign the same version twice. Without it, Firefox users can load the userscript (`/usr/share/doc/theqa-cta/theqa-linux.user.js`) in Violentmonkey or Tampermonkey.
 
 ## Technical details
+
+### How it works
+
+```
+Browser (idp-pki.mtcit.gov.om)
+  -> SignalR over WebSocket: http://localhost:5234/SmartCardHub
+     Linux host (this repo: cta-linux/Program.cs, Avalonia tray)
+       -> Digitrustec CTA assemblies, unchanged (hubs, Oman ID logic, card library)
+          -> PC/SC (pcsc-sharp) -> pcscd -> USB card reader
+```
+
+The official CTA's own .NET assemblies are reused unchanged; only the Windows-specific shell (WPF window, tray, Win32 calls) is replaced by a small Linux host.
+
+- **Portable assemblies.** The official CTA is .NET 8. Everything except its WPF shell (`Digitrustec.CTA.Win.dll`) already runs on Linux. Card access goes through PC/SC, which works with Linux's `pcscd` as-is.
+- **Same host, minus Windows.** The Linux host registers the same services, SignalR hubs and port as the Windows app. Results therefore come back exactly as the Theqa server expects (they are signed and encrypted for the server by the original code).
+- **Browser side.** The login page only accepts Windows and macOS, so a tiny browser extension makes that one site see Windows ([details](#browser-side)). The package installs it automatically in Chromium-based browsers.
 
 ### What runs where
 

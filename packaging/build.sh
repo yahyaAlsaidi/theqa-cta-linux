@@ -19,6 +19,15 @@ while [ $# -gt 0 ]; do
   shift
 done
 here=$(cd "$(dirname "$0")" && pwd)
+# Fail early, before setting up tools, if there are no CTA files to build from
+if [ $# -gt 0 ]; then
+  [ -f "$1" ] || { echo "Installer not found: $1" >&2; exit 1; }
+elif [ ! -f "$here/../cta-linux/vendor/Digitrustec.CTA.Win.dll" ] &&
+     [ ! -f "$HOME/.wine-theqa/drive_c/users/$USER/AppData/Local/Digitrustec.CTA.Win/Digitrustec.CTA.Win.dll" ]; then
+  echo "No CTA files found. Pass the official Windows installer (see README, 'Where the CTA files come from'):" >&2
+  echo "  packaging/build.sh --install ~/Downloads/CTA-V1.4.18.exe" >&2
+  exit 1
+fi
 dist=$here/dist
 tools=$here/.tools
 stage=$(mktemp -d)
