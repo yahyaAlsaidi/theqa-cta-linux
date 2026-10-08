@@ -2,7 +2,7 @@
 
 Use your **Oman ID card** to log in to **Theqa** ([idp-pki.mtcit.gov.om](https://idp-pki.mtcit.gov.om)) on Linux.
 
-On Windows and macOS, the Theqa login uses a small helper app from Digitrustec (the **CTA**, or Identity Reader) to read your card. This project brings that app to Linux: install one package, plug in your card reader, and log in as usual.
+On Windows and macOS, the Theqa login uses a small helper app from Digitrustec (the **CTA**, or Identity Reader) to read your card. This project brings that app to Linux: install one package, plug in your card reader, and log in as usual in **Chrome, Chromium, Brave, Edge or Firefox**.
 
 | I want to... | Go to |
 |---|---|
@@ -18,7 +18,7 @@ You need:
 
 - 64-bit (x86-64) Linux
 - a USB smart-card reader (tested: Alcor Link AK9563)
-- Google Chrome, Chromium, Brave, Edge, or Firefox 140+
+- Google Chrome, Chromium, Brave, Edge, or Firefox 140 or newer
 
 ### 1. Download and install the package for your distro
 
@@ -86,7 +86,14 @@ Removing also removes the browser policy and extension.
 
 ### Firefox users
 
-Works the same way in Firefox 140 and newer: the package installs the extension and lets the login page reach the CTA. Restart Firefox after installing.
+Firefox 140 and newer is supported, the same way as Chrome:
+
+- **Extension.** The package installs the Mozilla-signed "Theqa CTA for Linux" extension automatically.
+- **Local connection.** It lets the login page talk to the CTA on your computer without asking (Firefox 145+ would otherwise show a permission prompt).
+
+Restart Firefox after installing. To check, open `about:addons` (the extension is listed) and `about:policies` (`ExtensionSettings` and `LocalNetworkAccess` are active).
+
+Ubuntu's default Firefox is a Snap, which hasn't been tested. If the extension doesn't show up there, load the userscript `/usr/share/doc/theqa-cta/theqa-linux.user.js` in Violentmonkey or Tampermonkey instead.
 
 ## Usage
 
@@ -102,7 +109,7 @@ Works the same way in Firefox 140 and newer: the package installs the extension 
 
 - Is it running? `ss -ltn | grep 5234`
 - Does Linux see the reader? `pcsc_scan` (package `pcsc-tools`)
-- Is the extension installed? Check `chrome://extensions` and `chrome://policy`
+- Is the extension installed? Chrome-based browsers: `chrome://extensions` and `chrome://policy`. Firefox: `about:addons` and `about:policies`
 - `IsDeviceConnected` is false for the first few seconds. The card monitor starts on the page's first request and polls every 5 s, the same as on Windows.
 - Hub smoke test without the browser (needs `python3 -m venv .venv && .venv/bin/pip install aiohttp`):
 
