@@ -274,35 +274,6 @@ Because of the policy, the browser shows "Managed by your organization", and the
 
 To read the official code for reference, decompile it yourself with [ILSpy](https://github.com/icsharpcode/ILSpy) (`ilspycmd -p -o decompiled/<name> <dll>`). Decompiled output is git-ignored.
 
-## Testing
-
-Tested against the official Windows CTA 1.4.18 (run under Wine), with the same card and reader:
-
-| Check | Linux host | Windows CTA |
-|---|---|---|
-| `GetCtaAppVersionAsync` | 1.4.18 | 1.4.18 |
-| `IsDeviceConnectedAsync` | true | true |
-| `GetCardInfoAsync` | full card data | failed under Wine |
-| `GetCertificatesAsync` | authentication certificate | same |
-| Request from another website | rejected (403) | accepted |
-
-Packages, tested in clean containers. In each one the distro's package manager installed the package and resolved the dependencies. The app started, `probe.py` got version 1.4.18 and sealed results, and with no usable display the app fell back to running without the tray:
-
-| Distro | Package | Smart-card deps installed |
-|---|---|---|
-| Debian 13 (stable) | `.deb` | pcscd 2.3.3, libccid 1.6.2 |
-| Ubuntu 24.04 | `.deb` | pcscd 2.0.3, libccid 1.5.5 |
-| Fedora 44 | `.rpm` | pcsc-lite 2.4.1, pcsc-lite-ccid 1.7.1 |
-| openSUSE Tumbleweed | `.rpm` | pcsc-lite 2.3.3 (the CCID driver is a recommended dependency; the container image skips those) |
-| Arch Linux | `.pkg.tar.zst` | pcsclite 2.5.2, ccid 1.8.4 |
-| AlmaLinux 9 | tarball | none: `install.sh` printed the hint. Install, run and uninstall all worked |
-
-Browser side, tested in a fresh headless Chrome 152 profile with the package installed:
-
-- the extension is force-installed;
-- the live login page reports `getCtaOs()` = `windows`, while other sites still see `Linux x86_64`;
-- the login page reaches `localhost:5234` without a prompt.
-
 ## Limitations
 
 - **Firefox.** It needs the signed extension ([Firefox](#firefox)). Firefox 140 or newer is required.
