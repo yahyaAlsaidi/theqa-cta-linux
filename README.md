@@ -10,7 +10,7 @@ On Windows and macOS, the Theqa login uses a small helper app from Digitrustec (
 | build the package myself | [Build from source](#build-from-source): two commands |
 | understand how it works | [Technical details](#technical-details) |
 
-> **Unofficial.** Not affiliated with or endorsed by Digitrustec or MTCIT. The ready-made packages on the Releases page include Digitrustec's CTA components; the source in this repository does not.
+> **Unofficial.** Not affiliated with or endorsed by Digitrustec or MTCIT. Digitrustec's CTA components are included unchanged, in `cta-linux/vendor/` and in the release packages.
 
 ## Install
 
@@ -122,8 +122,6 @@ git clone https://github.com/yahyaAlsaidi/theqa-cta-linux.git && cd theqa-cta-li
 packaging/build.sh --install
 ```
 
-If it says *No CTA files found*, add the official Windows installer to the command, e.g. `packaging/build.sh --install ~/Downloads/CTA-V1.4.18.exe` (see [Where the CTA files come from](#where-the-cta-files-come-from)).
-
 That one command:
 
 1. **Detects your distro** from its package manager, and builds only the package it needs:
@@ -142,15 +140,19 @@ To build every format, e.g. for a release, run `packaging/build.sh --all`.
 
 ### Where the CTA files come from
 
-The build needs Digitrustec's CTA files (their unchanged DLLs and `ChainCertificates`). It takes them from the first of these that applies:
+The build needs Digitrustec's CTA files: their unchanged DLLs and `ChainCertificates`. The repository includes them in `cta-linux/vendor/`, so a normal build needs nothing else: no Windows installer, no Wine.
 
-1. **The official installer**, if you pass it: `packaging/build.sh --install ~/Downloads/CTA-V1.4.18.exe`.
-   - **Unattended unpack.** The script runs the installer unattended in a throwaway 64-bit Wine prefix, only to unpack it.
-   - **Desktop needed.** This needs a desktop session, because the installer opens a window even when unattended. Without one (servers, CI), use `xvfb-run -a packaging/build.sh ...`.
-   - **Tested** with stock Wine on Debian 13, Ubuntu 24.04, Fedora 44 and Arch, and with WineHQ on Zorin OS. On openSUSE Tumbleweed it hung, so build on another distro (the packages install fine on openSUSE).
-   - **Getting the installer.** Open https://idp-pki.mtcit.gov.om, choose ID card login and click **Download CTA**. On Linux the page says "not supported"; open the browser console there (F12, Console) and run `location.href = Extensions.getDownloadCtaUrl("windows")`.
-2. **`cta-linux/vendor/`**, if it contains the CTA files. No installer and no Wine needed.
-3. **An existing Wine install** of the official CTA, at `~/.wine-theqa/drive_c/users/$USER/AppData/Local/Digitrustec.CTA.Win`. To use another path, set `CtaDir`.
+To build against a different CTA version, pass its official Windows installer instead:
+
+```sh
+packaging/build.sh --install ~/Downloads/CTA-V<version>.exe
+```
+
+- **Unattended unpack.** The script runs the installer unattended in a throwaway 64-bit Wine prefix, only to unpack it. It sets up Wine if needed.
+- **Desktop needed.** Unpacking needs a desktop session, because the installer opens a window even when unattended. Without one (servers, CI), use `xvfb-run -a packaging/build.sh ...`.
+- **Tested** with stock Wine on Debian 13, Ubuntu 24.04, Fedora 44 and Arch, and with WineHQ on Zorin OS. It hung on openSUSE Tumbleweed.
+- **Getting the installer.** Open https://idp-pki.mtcit.gov.om, choose ID card login and click **Download CTA**. On Linux the page says "not supported"; open the browser console there (F12, Console) and run `location.href = Extensions.getDownloadCtaUrl("windows")`.
+- **Bundling the new version.** To make a new CTA version the default, replace the files in `cta-linux/vendor/` with the same files from the new version.
 
 The package version is the version of the CTA files used.
 
@@ -282,6 +284,7 @@ Because of the policy, the browser shows "Managed by your organization", and the
 | `cta-linux/Digitrustec.CTA.Linux.csproj` | references the official assemblies from `CtaDir`, version stamping |
 | `cta-linux/probe.py` | hub test client |
 | `cta-linux/appicon.png` | tray / menu icon |
+| `cta-linux/vendor/` | Digitrustec's CTA files, unchanged: the DLLs the host uses + `ChainCertificates` |
 | `packaging/build.sh` | builds the package for this distro (`--all`: every format), `--install` installs it |
 | `packaging/postinstall.sh` | package post-install: starts `pcscd.socket` |
 | `packaging/install.sh` | tarball installer / uninstaller |

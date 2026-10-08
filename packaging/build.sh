@@ -35,7 +35,9 @@ trap 'rm -rf "$stage" "$stage.yaml" "$stage-tar" "$stage-cta"' EXIT
 app=$stage/opt/theqa-cta
 mkdir -p "$tools"
 
-sudo=$([ "$(id -u)" = 0 ] || echo sudo)
+if [ "$(id -u)" = 0 ]; then sudo=
+elif [ ! -t 0 ] && command -v pkexec >/dev/null; then sudo=pkexec  # no terminal to type a password: desktop prompt
+else sudo=sudo; fi
 pm=$(for p in apt-get dnf zypper pacman; do command -v $p >/dev/null && echo $p && break; done)
 case $pm in apt-get) formats=deb ;; dnf|zypper) formats=rpm ;; pacman) formats=archlinux ;; *) formats=tar ;; esac
 [ -z "$all" ] || formats="deb rpm archlinux tar"
