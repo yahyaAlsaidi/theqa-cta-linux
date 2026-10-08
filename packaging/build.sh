@@ -140,21 +140,26 @@ for dir in etc/opt/chrome etc/chromium etc/chromium-browser etc/brave etc/opt/ed
 EOF
 done
 
-# Firefox only force-installs Mozilla-signed extensions: included once packaging/firefox-ext.xpi exists (see README).
+# Firefox policy (/etc/firefox, and /etc/firefox-esr for Debian's ESR): lets the login page reach the CTA on localhost
+# without a permission prompt (Firefox 145+), and force-installs the extension once a Mozilla-signed
+# packaging/firefox-ext.xpi exists (Firefox only force-installs signed extensions; see README).
+ff_ext=
 if [ -f "$here/firefox-ext.xpi" ]; then
   gecko_id=$(sed -n 's/.*"id": "\(.*\)".*/\1/p' "$here/browser-ext/manifest.json")
   cp "$here/firefox-ext.xpi" "$app/firefox-ext.xpi"
-  mkdir -p "$stage/etc/firefox/policies"
-  cat > "$stage/etc/firefox/policies/policies.json" <<EOF
+  ff_ext="\"ExtensionSettings\": { \"$gecko_id\": { \"installation_mode\": \"force_installed\", \"install_url\": \"file:///opt/theqa-cta/firefox-ext.xpi\" } },"
+fi
+for dir in etc/firefox etc/firefox-esr; do
+  mkdir -p "$stage/$dir/policies"
+  cat > "$stage/$dir/policies/policies.json" <<EOF
 {
   "policies": {
-    "ExtensionSettings": {
-      "$gecko_id": { "installation_mode": "force_installed", "install_url": "file:///opt/theqa-cta/firefox-ext.xpi" }
-    }
+    $ff_ext
+    "LocalNetworkAccess": { "SkipDomains": ["idp-pki.mtcit.gov.om"] }
   }
 }
 EOF
-fi
+done
 
 chmod -R u+rwX,go+rX,go-w "$stage"
 rm -rf "$dist" && mkdir -p "$dist"

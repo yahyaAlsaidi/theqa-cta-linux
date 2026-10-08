@@ -86,7 +86,7 @@ Removing also removes the browser policy and extension.
 
 ### Firefox users
 
-The extension isn't installed automatically in Firefox yet. Instead, add a userscript manager (Violentmonkey or Tampermonkey) and load `/usr/share/doc/theqa-cta/theqa-linux.user.js`, which is installed with the package.
+The package sets a Firefox policy that lets the login page reach the CTA without a permission prompt (Firefox 145 and newer). The extension itself isn't installed automatically in Firefox yet. Until it is, add a userscript manager (Violentmonkey or Tampermonkey) and load `/usr/share/doc/theqa-cta/theqa-linux.user.js`, which is installed with the package. Restart Firefox after installing.
 
 ## Usage
 
@@ -174,7 +174,7 @@ Firefox only force-installs extensions signed by Mozilla. Signing is free and th
    packaging/build.sh --all
    ```
 
-With `packaging/firefox-ext.xpi` present, the packages also install `/etc/firefox/policies/policies.json`, which force-installs it. Commit the signed `.xpi`: Mozilla won't sign the same version twice. Without it, Firefox users can load the userscript (`/usr/share/doc/theqa-cta/theqa-linux.user.js`) in Violentmonkey or Tampermonkey.
+The packages always install a Firefox policy (`/etc/firefox/policies/policies.json`, and `/etc/firefox-esr/...` for Debian's ESR). It lets the login page reach `localhost:5234` without a prompt (`LocalNetworkAccess` / `SkipDomains`). With `packaging/firefox-ext.xpi` present, the same policy also force-installs the extension. Commit the signed `.xpi`: Mozilla won't sign the same version twice. Without it, Firefox users can load the userscript (`/usr/share/doc/theqa-cta/theqa-linux.user.js`) in Violentmonkey or Tampermonkey.
 
 ## Limitations
 
