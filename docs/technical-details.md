@@ -88,7 +88,6 @@ Because of the policy, the browser shows "Managed by your organization", and the
 |---|---|
 | `cta-linux/Program.cs` | Linux host + Avalonia tray |
 | `cta-linux/Digitrustec.CTA.Linux.csproj` | references the official assemblies from `CtaDir`, version stamping |
-| `cta-linux/probe.py` | hub test client |
 | `cta-linux/appicon.png` | tray / menu icon |
 | `cta-linux/vendor/` | Digitrustec's CTA files, unchanged: the DLLs the host uses + `ChainCertificates` |
 | `packaging/build.sh` | builds the package for this distro (`--all`: every format), `--install` installs it |
