@@ -111,6 +111,7 @@ Ubuntu's default Firefox is a Snap, which hasn't been tested. If the extension d
 - Does Linux see the reader? `pcsc_scan` (package `pcsc-tools`)
 - Is the extension installed? Chrome-based browsers: `chrome://extensions` and `chrome://policy`. Firefox: `about:addons` and `about:policies`
 - `IsDeviceConnected` is false for the first few seconds. The card monitor starts on the page's first request and polls every 5 s, the same as on Windows.
+
 ## Build from source
 
 Only needed if you want to build the package yourself. To just use it, see [Install](#install).
