@@ -111,13 +111,6 @@ Ubuntu's default Firefox is a Snap, which hasn't been tested. If the extension d
 - Does Linux see the reader? `pcsc_scan` (package `pcsc-tools`)
 - Is the extension installed? Chrome-based browsers: `chrome://extensions` and `chrome://policy`. Firefox: `about:addons` and `about:policies`
 - `IsDeviceConnected` is false for the first few seconds. The card monitor starts on the page's first request and polls every 5 s, the same as on Windows.
-- Hub smoke test without the browser (needs `python3 -m venv .venv && .venv/bin/pip install aiohttp`):
-
-  ```sh
-  .venv/bin/python cta-linux/probe.py          # version, card presence, card info, certificate
-  .venv/bin/python cta-linux/probe.py --pin    # + PIN login and a test signature (asks for the PIN; a wrong PIN uses up an attempt)
-  ```
-
 ## Build from source
 
 Only needed if you want to build the package yourself. To just use it, see [Install](#install).
