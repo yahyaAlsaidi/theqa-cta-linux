@@ -50,6 +50,23 @@ curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/latest/downloa
 sudo pacman -U ./theqa-cta-x86_64.pkg.tar.zst
 ```
 
+**NixOS** (flakes): add the module to your system flake, then `sudo nixos-rebuild switch`
+
+```nix
+{
+  inputs.theqa-cta.url = "github:yahyaAlsaidi/theqa-cta-linux";
+  inputs.theqa-cta.inputs.nixpkgs.follows = "nixpkgs";
+
+  outputs = { nixpkgs, theqa-cta, ... }: {
+    nixosConfigurations.<host> = nixpkgs.lib.nixosSystem {
+      modules = [ ./configuration.nix theqa-cta.nixosModules.default { services.theqa-cta.enable = true; } ];
+    };
+  };
+}
+```
+
+It turns on the smart-card service (`services.pcscd`), the browser policies and the autostart entry.
+
 **Any other distro**
 
 ```sh
@@ -57,7 +74,7 @@ curl -LO https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/latest/downloa
 tar -xzf theqa-cta-linux-x64.tar.gz && sudo ./theqa-cta-*/install.sh
 ```
 
-The packages also install your distro's smart-card service (pcsc-lite) and USB reader driver (CCID), and start the service. For the tarball, `install.sh` tells you what to install if they're missing.
+The packages also install your distro's smart-card service (pcsc-lite) and USB reader driver (CCID), and start the service. For the tarball, `install.sh` tells you what to install if they're missing. On Alpine (musl) that includes `gcompat`, Alpine's glibc compatibility layer, which the CTA needs to run.
 
 To check a download (optional):
 
@@ -81,6 +98,7 @@ sha256sum -c --ignore-missing SHA256SUMS
 | openSUSE | `sudo zypper remove theqa-cta` |
 | Arch and derivatives | `sudo pacman -R theqa-cta` |
 | Tarball install | `sudo /opt/theqa-cta/install.sh --uninstall` |
+| NixOS | remove `services.theqa-cta.enable`, then `sudo nixos-rebuild switch` |
 
 Removing also removes the browser policy and extension.
 
@@ -137,7 +155,7 @@ That one command:
 2. **Sets up the build tools it's missing** (see [Build tools](#build-tools)).
 3. **Installs the package** (`--install`), and reinstalls it on later rebuilds. Without `--install` it only builds.
 
-To build every format, e.g. for a release, run `packaging/build.sh --all`.
+To build every format, e.g. for a release, run `packaging/build.sh --all`. After a release, update `version`, `release` and `hash` in `flake.nix` (it repackages the release tarball); `nix flake check` boots a NixOS VM that tests it.
 
 ### Build tools
 
@@ -182,7 +200,7 @@ The packages always install a Firefox policy (`/etc/firefox/policies/policies.js
 - **Firefox.** Version 140 or newer.
 - **Snap and Flatpak browsers.** They don't read the policies in `/etc`, and may not be able to read `/opt`. Untested: use the userscript there. Google Chrome, Brave and Edge are normal packages, not snaps.
 - **Tray on plain GNOME.** Fedora, Debian and Arch's GNOME show no tray icons without the "AppIndicator and KStatusNotifierItem Support" extension. The app still works; the icon just isn't visible. KDE, Cinnamon, XFCE and Ubuntu-based desktops show it.
-- **Architecture.** x86-64 with glibc only. ARM64 or musl (Alpine) would need `-r linux-arm64` / `linux-musl-x64` builds.
+- **Architecture.** x86-64 only, built for glibc; musl (Alpine) runs it through `gcompat`. ARM64 would need a `-r linux-arm64` build.
 - **eToken.** eToken (`ETokenHub`) login doesn't work: the official code loads a hardcoded Windows PKCS#11 DLL path.
 - **One desktop user at a time.** The port, 5234, is fixed.
 - **Card photo.** It is returned as raw JPEG 2000, the same as on Windows.

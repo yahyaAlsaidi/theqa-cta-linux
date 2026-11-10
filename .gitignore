@@ -17,3 +17,6 @@ decompiled/
 # Local
 .venv/
 __pycache__/
+
+# Nix build output
+result
