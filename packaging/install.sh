@@ -25,6 +25,11 @@ mkdir -p /opt/theqa-cta
 while IFS= read -r f; do
     mkdir -p "${f%/*}" && rm -f "$f" && cp -P "files$f" "$f"
 done < /opt/theqa-cta/files.txt
+# Our directories belong to root. Installers before release 4 (tar) gave the ones they created to whoever
+# extracted the tarball, which let that user change the CTA and the browser policies: take them back.
+(cd files && find . -mindepth 1 -type d | sed 's|^\.||') | while IFS= read -r d; do
+    [ "$(stat -c %u "$d")" = 0 ] || chown -h 0:0 "$d"
+done
 cp install.sh /opt/theqa-cta/install.sh
 # Start the smart-card service: systemd, or OpenRC (Alpine)
 systemctl enable --now pcscd.socket >/dev/null 2>&1 \
