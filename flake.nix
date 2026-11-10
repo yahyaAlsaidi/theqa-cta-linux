@@ -14,10 +14,10 @@
         stdenv.mkDerivation rec {
           pname = "theqa-cta";
           version = "1.4.18";
-          release = "3";
+          release = "4";
           src = fetchurl {
             url = "https://github.com/yahyaAlsaidi/theqa-cta-linux/releases/download/v${version}-${release}/theqa-cta-linux-x64.tar.gz";
-            hash = "sha256-g1/xKGsWQPW4AYvgdYMLzdypQs5IPqu1SWj54V3HNM4=";
+            hash = "sha256-UuOAtFdsG+uBEyrjRBtFL+f56a7/dRZamhXaNDwzN9c=";
           };
           nativeBuildInputs = [ autoPatchelfHook makeWrapper ];
           buildInputs = [ stdenv.cc.cc.lib zlib fontconfig openssl krb5 ];
